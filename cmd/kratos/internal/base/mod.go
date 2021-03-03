@@ -11,6 +11,12 @@ import (
 	"golang.org/x/mod/modfile"
 )
 
+func GetEnvGOPATH() string {
+	pathOut, _ := exec.Command("go", "env", "GOPATH").Output()
+	gopath := strings.Trim(string(pathOut), "\n")
+	return gopath
+}
+
 // ModulePath returns go module path.
 func ModulePath(filename string) (string, error) {
 	modBytes, err := ioutil.ReadFile(filename)
@@ -48,8 +54,7 @@ func KratosMod() string {
 	// go 1.15+ read from env GOMODCACHE
 	cacheOut, _ := exec.Command("go", "env", "GOMODCACHE").Output()
 	cachePath := strings.Trim(string(cacheOut), "\n")
-	pathOut, _ := exec.Command("go", "env", "GOPATH").Output()
-	gopath := strings.Trim(string(pathOut), "\n")
+	gopath := GetEnvGOPATH()
 	if cachePath == "" {
 		cachePath = filepath.Join(gopath, "pkg", "mod")
 	}

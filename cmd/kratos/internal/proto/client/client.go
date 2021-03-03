@@ -75,16 +75,17 @@ func walk(dir string) error {
 func generate(proto string) error {
 	path, name := filepath.Split(proto)
 	fd := exec.Command("protoc", []string{
-		"--proto_path=.",
-		"--proto_path=" + filepath.Join(base.KratosMod(), "api"),
 		"--proto_path=" + filepath.Join(base.KratosMod(), "third_party"),
-		"--proto_path=" + filepath.Join(os.Getenv("GOPATH"), "src"),
+		"--proto_path=" + filepath.Join(base.KratosMod(), "api"),
+		"--proto_path=" + filepath.Join(base.GetEnvGOPATH(), "src"),
+		"--proto_path=.",
 		"--go_out=paths=source_relative:.",
 		"--go-grpc_out=paths=source_relative:.",
 		"--go-http_out=paths=source_relative:.",
 		"--go-errors_out=paths=source_relative:.",
 		name,
 	}...)
+	fmt.Println(fd.String())
 	fd.Stdout = os.Stdout
 	fd.Stderr = os.Stderr
 	fd.Dir = path

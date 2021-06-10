@@ -68,8 +68,8 @@ type Stat struct {
 type BBR struct {
 	cpu             cpuGetter
 	passStat        metric.RollingCounter
-	rtStat          metric.RollingCounter
-	inFlight        int64
+	rtStat          metric.RollingCounter	// 响应时间
+	inFlight        int64	// 处理中的请求数
 	winBucketPerSec int64
 	bucketDuration  time.Duration
 	winSize         int
@@ -97,6 +97,7 @@ type Config struct {
 	CPUThreshold int64
 }
 
+// 每个bucket最大的请求数
 func (l *BBR) maxPASS() int64 {
 	passCache := l.maxPASSCache.Load()
 	if passCache != nil {
@@ -135,6 +136,7 @@ func (l *BBR) timespan(lastTime time.Time) int {
 	return l.winSize
 }
 
+// 最小的相应时间
 func (l *BBR) minRT() int64 {
 	rtCache := l.minRtCache.Load()
 	if rtCache != nil {
@@ -154,7 +156,7 @@ func (l *BBR) minRT() int64 {
 			for _, p := range bucket.Points {
 				total += p
 			}
-			avg := total / float64(bucket.Count)
+			avg := total / float64(bucket.Count)	// 每个bucket的平均值
 			result = math.Min(result, avg)
 		}
 		return result
@@ -169,10 +171,12 @@ func (l *BBR) minRT() int64 {
 	return rawMinRT
 }
 
+// +0.5 四舍五入     (bucket中最大的请求数 * bucket中最小的rt * 一秒钟bucket的数量) / 1000 (因为rt是毫秒的单位,转成秒)
 func (l *BBR) maxFlight() int64 {
 	return int64(math.Floor(float64(l.maxPASS()*l.minRT()*l.winBucketPerSec)/1000.0 + 0.5))
 }
 
+// 是否丢弃请求
 func (l *BBR) shouldDrop() bool {
 	if l.cpu() < l.conf.CPUThreshold {
 		prevDrop, _ := l.prevDrop.Load().(time.Duration)
@@ -211,20 +215,23 @@ func (l *BBR) Stat() Stat {
 
 // Allow checks all inbound traffic.
 // Once overload is detected, it raises ecode.LimitExceed error.
+// 对请求是否放行
 func (l *BBR) Allow(ctx context.Context, opts ...limit.AllowOption) (func(info limit.DoneInfo), error) {
 	allowOpts := limit.DefaultAllowOpts()
 	for _, opt := range opts {
 		opt.Apply(&allowOpts)
 	}
-	if l.shouldDrop() {
+	if l.shouldDrop() {	// 丢弃
 		return nil, ecode.LimitExceed
 	}
+
+	// 没被丢弃才进行rt，inFlight的处理
 	atomic.AddInt64(&l.inFlight, 1)
-	stime := time.Since(initTime)
+	stime := time.Since(initTime) // 系统经过的时间
 	return func(do limit.DoneInfo) {
-		rt := int64((time.Since(initTime) - stime) / time.Millisecond)
-		l.rtStat.Add(rt)
-		atomic.AddInt64(&l.inFlight, -1)
+		rt := int64((time.Since(initTime) - stime) / time.Millisecond) // 请求处理结束后计算rt 时间单位是 ms
+		l.rtStat.Add(rt)	// 记录rt
+		atomic.AddInt64(&l.inFlight, -1) // 减少inflight
 		switch do.Op {
 		case limit.Success:
 			l.passStat.Add(1)
@@ -240,7 +247,7 @@ func newLimiter(conf *Config) limit.Limiter {
 		conf = defaultConf
 	}
 	size := conf.WinBucket
-	bucketDuration := conf.Window / time.Duration(conf.WinBucket)
+	bucketDuration := conf.Window / time.Duration(conf.WinBucket) // 窗口的总时长/窗口的bucket数量  = 一个bucket分配的时长
 	passStat := metric.NewRollingCounter(metric.RollingCounterOpts{Size: size, BucketDuration: bucketDuration})
 	rtStat := metric.NewRollingCounter(metric.RollingCounterOpts{Size: size, BucketDuration: bucketDuration})
 	cpu := func() int64 {
@@ -251,7 +258,7 @@ func newLimiter(conf *Config) limit.Limiter {
 		conf:            conf,
 		passStat:        passStat,
 		rtStat:          rtStat,
-		winBucketPerSec: int64(time.Second) / (int64(conf.Window) / int64(conf.WinBucket)),
+		winBucketPerSec: int64(time.Second) / (int64(conf.Window) / int64(conf.WinBucket)), // 1秒钟有多少个bucket
 		bucketDuration:  bucketDuration,
 		winSize:         conf.WinBucket,
 	}

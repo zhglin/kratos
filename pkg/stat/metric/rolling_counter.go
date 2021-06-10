@@ -20,8 +20,8 @@ type RollingCounter interface {
 
 // RollingCounterOpts contains the arguments for creating RollingCounter.
 type RollingCounterOpts struct {
-	Size           int
-	BucketDuration time.Duration
+	Size           int				// 多少个bucket
+	BucketDuration time.Duration	// 时间窗口长度
 }
 
 type rollingCounter struct {

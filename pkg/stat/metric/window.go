@@ -2,9 +2,9 @@ package metric
 
 // Bucket contains multiple float64 points.
 type Bucket struct {
-	Points []float64
-	Count  int64
-	next   *Bucket
+	Points []float64	// 当前bucket中的数据
+	Count  int64		// points的数据量
+	next   *Bucket		// 指向下一个bucket
 }
 
 // Append appends the given value to the bucket.
@@ -33,7 +33,7 @@ func (b *Bucket) Next() *Bucket {
 // Window contains multiple buckets.
 type Window struct {
 	window []Bucket
-	size   int
+	size   int	// 总的bucket数
 }
 
 // WindowOpts contains the arguments for creating Window.
@@ -42,6 +42,7 @@ type WindowOpts struct {
 }
 
 // NewWindow creates a new Window based on WindowOpts.
+// 构建滑动窗口
 func NewWindow(opts WindowOpts) *Window {
 	buckets := make([]Bucket, opts.Size)
 	for offset := range buckets {
@@ -50,7 +51,7 @@ func NewWindow(opts WindowOpts) *Window {
 		if nextOffset == opts.Size {
 			nextOffset = 0
 		}
-		buckets[offset].next = &buckets[nextOffset]
+		buckets[offset].next = &buckets[nextOffset] // 构建成环形列表
 	}
 	return &Window{window: buckets, size: opts.Size}
 }
@@ -99,9 +100,10 @@ func (w *Window) Size() int {
 }
 
 // Iterator returns the bucket iterator.
+// 返回迭代的信息
 func (w *Window) Iterator(offset int, count int) Iterator {
 	return Iterator{
-		count: count,
-		cur:   &w.window[offset],
+		count: count, // 迭代的次数
+		cur:   &w.window[offset],	// 起点
 	}
 }

@@ -102,7 +102,7 @@ func (cpu *cgroupCPU) Usage() (u uint64, err error) {
 		return
 	}
 	if system != cpu.preSystem {
-		// (float64(system-cpu.preSystem) * cpu.quota)  system-cpu.preSystem(当前进程所能使用的一个cpu的所有时间) * cpu.quota (当前进程绑定的cpu数)  结果就等于当前进程这段时间所能使用的所有cpu时间
+		// (float64(system-cpu.preSystem) * cpu.cores)  system-cpu.preSystem(当前进程所能使用的一个cpu的所有时间) * cpu.quota (当前进程绑定的cpu数)  结果就等于当前进程这段时间所能使用的所有cpu时间
 		u = uint64(float64((total-cpu.preTotal)*cpu.cores*1e3) / (float64(system-cpu.preSystem) * cpu.quota))
 	}
 	cpu.preSystem = system

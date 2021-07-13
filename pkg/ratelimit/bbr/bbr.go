@@ -67,7 +67,7 @@ type Stat struct {
 // https://github.com/alibaba/Sentinel/wiki/%E7%B3%BB%E7%BB%9F%E8%87%AA%E9%80%82%E5%BA%94%E9%99%90%E6%B5%81
 type BBR struct {
 	cpu             cpuGetter
-	passStat        metric.RollingCounter
+	passStat        metric.RollingCounter	// 成功的请求
 	rtStat          metric.RollingCounter	// 响应时间
 	inFlight        int64	// 处理中的请求数
 	winBucketPerSec int64
